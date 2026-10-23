@@ -123,37 +123,35 @@ void GameDrawMenu(Game *game) {
     AICarDraw(&game->aiCars[i]);
   }
 
-  // Draw player car (bigger, more detailed)
-  float carW = 52.0f;
-  float carH = 28.0f;
-  float deg = game->car.angle * 180.0f / PI;
+  // Draw player car (same style as AI cars, RED + white outline)
+  {
+    float pw = 48.0f;
+    float ph = 26.0f;
+    float pdeg = game->car.angle * 180.0f / PI;
 
-  // Visibility marker (debug)
-  DrawCircle((int)game->car.position.x, (int)game->car.position.y, 8, YELLOW);
+    // White outline
+    Rectangle pOutline = { -pw / 2 - 2, -ph / 2 - 2, pw + 4, ph + 4 };
+    DrawRectanglePro(pOutline, game->car.position, pdeg, WHITE);
 
-  // White outline for visibility
-  Rectangle outline = { -carW / 2 - 2, -carH / 2 - 2, carW + 4, carH + 4 };
-  DrawRectanglePro(outline, game->car.position, deg, WHITE);
+    // Body
+    Rectangle pBody = { -pw / 2, -ph / 2, pw, ph };
+    DrawRectanglePro(pBody, game->car.position, pdeg, RED);
 
-  // Body
-  Rectangle body = { -carW / 2, -carH / 2, carW, carH };
-  DrawRectanglePro(body, game->car.position, deg, RED);
+    // Windshield
+    Rectangle pWind = { pw * 0.1f, -ph * 0.3f, pw * 0.25f, ph * 0.6f };
+    DrawRectanglePro(pWind, game->car.position, pdeg, MAROON);
 
-  // Windshield
-  Rectangle wind = { carW * 0.1f, -carH * 0.3f, carW * 0.25f, carH * 0.6f };
-  DrawRectanglePro(wind, game->car.position, deg, MAROON);
-
-  // Wheels
-  Color wheelColor = BLACK;
-  float ww = 9.0f, wh = 5.0f;
-  Rectangle wtl = { -carW * 0.3f, -carH * 0.55f, ww, wh };
-  Rectangle wtr = { -carW * 0.3f, carH * 0.55f - wh, ww, wh };
-  Rectangle wbl = { carW * 0.3f - ww, -carH * 0.55f, ww, wh };
-  Rectangle wbr = { carW * 0.3f - ww, carH * 0.55f - wh, ww, wh };
-  DrawRectanglePro(wtl, game->car.position, deg, wheelColor);
-  DrawRectanglePro(wtr, game->car.position, deg, wheelColor);
-  DrawRectanglePro(wbl, game->car.position, deg, wheelColor);
-  DrawRectanglePro(wbr, game->car.position, deg, wheelColor);
+    // Wheels
+    float pww = 8.0f, pwh = 5.0f;
+    Rectangle pWtl = { -pw * 0.3f, -ph * 0.55f, pww, pwh };
+    Rectangle pWtr = { -pw * 0.3f, ph * 0.55f - pwh, pww, pwh };
+    Rectangle pWbl = { pw * 0.3f - pww, -ph * 0.55f, pww, pwh };
+    Rectangle pWbr = { pw * 0.3f - pww, ph * 0.55f - pwh, pww, pwh };
+    DrawRectanglePro(pWtl, game->car.position, pdeg, BLACK);
+    DrawRectanglePro(pWtr, game->car.position, pdeg, BLACK);
+    DrawRectanglePro(pWbl, game->car.position, pdeg, BLACK);
+    DrawRectanglePro(pWbr, game->car.position, pdeg, BLACK);
+  }
 
    EndMode2D();
 
