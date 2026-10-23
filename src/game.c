@@ -128,6 +128,9 @@ void GameDrawMenu(Game *game) {
   float carH = 28.0f;
   float deg = game->car.angle * 180.0f / PI;
 
+  // Visibility marker (debug)
+  DrawCircle((int)game->car.position.x, (int)game->car.position.y, 8, YELLOW);
+
   // White outline for visibility
   Rectangle outline = { -carW / 2 - 2, -carH / 2 - 2, carW + 4, carH + 4 };
   DrawRectanglePro(outline, game->car.position, deg, WHITE);

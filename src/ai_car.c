@@ -23,8 +23,16 @@ void AICarsInit(AICar *cars, int count, const Track *track) {
 }
 
 void AICarUpdate(AICar *car, float dt, const Track *track) {
-  // Target current waypoint for steering
-  Vector2 target = track->points[car->waypointIndex];
+  // Blended target: current waypoint + 40% toward next (smoother cornering)
+  int curIdx = car->waypointIndex;
+  int nextIdx = (curIdx + 1) % track->pointCount;
+  Vector2 curWp = track->points[curIdx];
+  Vector2 nextWp = track->points[nextIdx];
+
+  Vector2 target;
+  target.x = curWp.x + (nextWp.x - curWp.x) * 0.4f;
+  target.y = curWp.y + (nextWp.y - curWp.y) * 0.4f;
+
   float dx = target.x - car->position.x;
   float dy = target.y - car->position.y;
   float targetAngle = atan2f(dy, dx);
@@ -35,17 +43,17 @@ void AICarUpdate(AICar *car, float dt, const Track *track) {
   while (angleDiff < -PI) angleDiff += 2.0f * PI;
 
   // Smooth steering with a max turn rate
-  float maxTurn = 5.5f * dt;
+  float maxTurn = 4.0f * dt;
   if (angleDiff > maxTurn) angleDiff = maxTurn;
   if (angleDiff < -maxTurn) angleDiff = -maxTurn;
   car->angle += angleDiff;
 
-  // Slow down for tight turns
+  // Slow down for tight turns (based on blended target angle)
   float targetSpd = car->targetSpeed;
-  if (fabsf(angleDiff) > 0.8f) {
-    targetSpd *= 0.3f;
-  } else if (fabsf(angleDiff) > 0.4f) {
-    targetSpd *= 0.55f;
+  if (fabsf(angleDiff) > 0.6f) {
+    targetSpd *= 0.35f;
+  } else if (fabsf(angleDiff) > 0.3f) {
+    targetSpd *= 0.6f;
   }
 
   // Accelerate / decelerate toward target speed
@@ -61,22 +69,20 @@ void AICarUpdate(AICar *car, float dt, const Track *track) {
   car->position.x += cosf(car->angle) * car->speed * dt;
   car->position.y += sinf(car->angle) * car->speed * dt;
 
-  // Clamp to track: if off-track, snap back, correct heading, and slow down
+  // Clamp to track: if off-track, nudge back gently
   if (!TrackIsOnTrack(track, car->position)) {
     Vector2 nearest = TrackGetNearestPoint(track, car->position);
     car->position = nearest;
-    Vector2 wp = track->points[car->waypointIndex];
-    car->angle = atan2f(wp.y - car->position.y, wp.x - car->position.x);
-    car->speed *= 0.5f;  // heavy speed penalty to prevent re-drift
+    car->angle = targetAngle;  // face the blended target
+    car->speed *= 0.7f;  // gentle penalty (not 0.5 which causes oscillation)
   }
 
-  // Advance to next waypoint (recalculate distance AFTER movement)
-  Vector2 curWp = track->points[car->waypointIndex];
+  // Advance to next waypoint (larger threshold for stability)
   float wdx = curWp.x - car->position.x;
   float wdy = curWp.y - car->position.y;
   float dist = sqrtf(wdx * wdx + wdy * wdy);
-  if (dist < 25.0f) {
-    car->waypointIndex = (car->waypointIndex + 1) % track->pointCount;
+  if (dist < 50.0f) {
+    car->waypointIndex = nextIdx;
     if (car->waypointIndex == 1) {
       car->lap++;
     }
