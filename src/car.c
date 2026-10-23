@@ -51,8 +51,8 @@ void CarUpdate(Car *car, float dt) {
     }
   }
 
-  // --- Friction ---
-  car->speed *= CAR_FRICTION;
+  // --- Friction (frame-rate independent) ---
+  car->speed *= powf(CAR_FRICTION, dt * 60.0f);
 
   // Clamp speed
   if (car->speed > CAR_MAX_SPEED) car->speed = CAR_MAX_SPEED;
