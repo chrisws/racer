@@ -134,13 +134,24 @@ static void DrawRoad(const Game *game, float steerOff) {
 
   if (valid < 2) return;
 
-  // Draw road surface as horizontal strips
-  for (int i = 0; i < valid; i++) {
-    float screenY = lyArr[i];
-    float lx = lxArr[i];
-    float rx = rxArr[i];
-    Color col = (i % 4 < 2) ? (Color){65, 65, 65, 255} : (Color){58, 58, 58, 255};
-    DrawLineEx((Vector2){lx, screenY}, (Vector2){rx, screenY}, 2.5f, col);
+  // Draw road surface as filled strips between consecutive rows
+  for (int i = 0; i < valid - 1; i++) {
+    float y0 = lyArr[i];
+    float y1 = lyArr[i + 1];
+    float lx0 = lxArr[i];
+    float rx0 = rxArr[i];
+    float lx1 = lxArr[i + 1];
+    float rx1 = rxArr[i + 1];
+    Color col = (i % 4 < 2) ? (Color){45, 45, 48, 255} : (Color){38, 38, 42, 255};
+    float top = (y0 < y1) ? y0 : y1;
+    float bot = (y0 < y1) ? y1 : y0;
+    float left = (lx0 < rx0) ? lx0 : rx0;
+    float right = (lx0 < rx0) ? rx0 : lx0;
+    float left1 = (lx1 < rx1) ? lx1 : rx1;
+    float right1 = (lx1 < rx1) ? rx1 : lx1;
+    float minL = (left < left1) ? left : left1;
+    float maxR = (right > right1) ? right : right1;
+    DrawRectangle((int)minL, (int)top, (int)(maxR - minL), (int)(bot - top) + 1, col);
   }
 
   // Draw track edges (yellow lines)
@@ -431,7 +442,7 @@ static void DrawDashboard(const Game *game) {
 // === Main first-person draw ===
 
 void FirstPersonDraw(const Game *game) {
-  float steerOff = -game->car.steering * 20.0f;
+  float steerOff = game->car.steering * 20.0f;
 
   // Sky
   DrawRectangle(0, WS_TOP, 1280, HORIZON_Y - WS_TOP, (Color){135, 206, 235, 255});
