@@ -79,6 +79,13 @@ void GameUpdateRacing(Game *game) {
 
   if (!TrackIsOnTrack(&game->track, game->car.position)) {
     game->car.speed *= 0.95f;
+    game->offTrackTimer += dt;
+    if (game->offTrackTimer > 2.0f) {
+      game->car.position = TrackGetNearestPoint(&game->track, game->car.position);
+      game->offTrackTimer = 0.0f;
+    }
+  } else {
+    game->offTrackTimer = 0.0f;
   }
 
   if (game->car.drift > 0.3f && fabsf(game->car.speed) > 50.0f) {

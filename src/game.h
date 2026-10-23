@@ -8,7 +8,7 @@
 #include "track.h"
 #include "effects.h"
 
-#define COUNTDOWN_DURATION 60.0f
+#define COUNTDOWN_DURATION 10.0f
 
 typedef enum {
   GAME_MENU,
@@ -36,6 +36,7 @@ struct Game {
   float bestLap;
   float raceTime;
   float countdownTimer;
+  float offTrackTimer;
   Camera2D camera;
 };
 

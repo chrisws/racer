@@ -11,6 +11,7 @@ static void InitGame(Game *game) {
   game->bestLap = 0.0f;
   game->raceTime = 0.0f;
   game->countdownTimer = 0.0f;
+  game->offTrackTimer = 0.0f;
   game->car = PlayerCar((Vector2){400.0f, 900.0f}, 0.0f);
   TrackInit(&game->track);
   EffectsInit(&game->effects);

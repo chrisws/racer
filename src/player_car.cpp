@@ -23,10 +23,10 @@ void PlayerCar::Update(float dt) {
     brake = 1.0f;
   }
   if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) {
-    steering = -1.0f;
+    steering = 1.0f;
   }
   if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) {
-    steering = 1.0f;
+    steering = -1.0f;
   }
 
   // --- Acceleration / Braking ---
