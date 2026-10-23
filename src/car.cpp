@@ -7,19 +7,27 @@ void Car::DrawRotatedRect(Vector2 center, float w, float h, float angleRad, Colo
   float cosA = cosf(angleRad);
   float sinA = sinf(angleRad);
 
-  // Four corner offsets
+  // Four corners
   float ox[4] = { -hw,  hw,  hw, -hw };
   float oy[4] = { -hh, -hh,  hh,  hh };
 
-  Vector2 corners[4];
+  Vector2 c[4];
   for (int i = 0; i < 4; i++) {
-    corners[i].x = center.x + ox[i] * cosA - oy[i] * sinA;
-    corners[i].y = center.y + ox[i] * sinA + oy[i] * cosA;
+    c[i].x = center.x + ox[i] * cosA - oy[i] * sinA;
+    c[i].y = center.y + ox[i] * sinA + oy[i] * cosA;
   }
 
-  // Two triangles fill the quad
-  DrawTriangle(corners[0], corners[1], corners[2], col);
-  DrawTriangle(corners[0], corners[2], corners[3], col);
+  // Fill with parallel thick lines (DrawTriangle unreliable in this build)
+  int N = 8;
+  float thick = h / N;
+  for (int i = 0; i < N; i++) {
+    float t = (float)i / (float)N;
+    Vector2 a = { c[0].x + (c[3].x - c[0].x) * t,
+                  c[0].y + (c[3].y - c[0].y) * t };
+    Vector2 b = { c[1].x + (c[2].x - c[1].x) * t,
+                  c[1].y + (c[2].y - c[1].y) * t };
+    DrawLineEx(a, b, thick, col);
+  }
 }
 
 void Car::Draw() {

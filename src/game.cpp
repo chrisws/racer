@@ -1,6 +1,7 @@
 #include "game.h"
 #include "hud.h"
 #include "audio.h"
+#include "first_person.h"
 #include <stdio.h>
 #include <math.h>
 
@@ -47,14 +48,18 @@ void GameUpdateCountdown(Game *game) {
 }
 
 void GameDrawCountdown(Game *game) {
-  BeginMode2D(game->camera);
-  DrawRectangleRec((Rectangle){0, 0, 2000, 2000}, DARKGREEN);
-  TrackDraw(&game->track);
-  for (int i = 0; i < game->aiCarCount; i++) {
-    game->aiCars[i].Draw();
+  if (game->viewMode == VIEW_FIRST_PERSON) {
+    FirstPersonDraw(game);
+  } else {
+    BeginMode2D(game->camera);
+    DrawRectangleRec((Rectangle){0, 0, 2000, 2000}, DARKGREEN);
+    TrackDraw(&game->track);
+    for (int i = 0; i < game->aiCarCount; i++) {
+      game->aiCars[i].Draw();
+    }
+    game->car.Draw();
+    EndMode2D();
   }
-  game->car.Draw();
-  EndMode2D();
 
   int remaining = (int)ceilf(game->countdownTimer);
   char buf[64];
@@ -117,6 +122,9 @@ void GameUpdateRacing(Game *game) {
     game->camera.target = game->car.position;
     game->camera.zoom = 1.5f;
   }
+  if (IsKeyPressed(KEY_F6)) {
+    game->viewMode = (game->viewMode == VIEW_FIRST_PERSON) ? VIEW_TOP_DOWN : VIEW_FIRST_PERSON;
+  }
 
   debugFrame++;
   if (debugFrame % 30 == 0) {
@@ -132,17 +140,21 @@ void GameUpdateRacing(Game *game) {
 }
 
 void GameDrawRacing(Game *game) {
-  BeginMode2D(game->camera);
-  DrawRectangleRec((Rectangle){0, 0, 2000, 2000}, DARKGREEN);
-  TrackDraw(&game->track);
-  EffectsDraw(&game->effects);
-  for (int i = 0; i < game->aiCarCount; i++) {
-    game->aiCars[i].Draw();
-  }
-  game->car.Draw();
-  EndMode2D();
+  if (game->viewMode == VIEW_FIRST_PERSON) {
+    FirstPersonDraw(game);
+  } else {
+    BeginMode2D(game->camera);
+    DrawRectangleRec((Rectangle){0, 0, 2000, 2000}, DARKGREEN);
+    TrackDraw(&game->track);
+    EffectsDraw(&game->effects);
+    for (int i = 0; i < game->aiCarCount; i++) {
+      game->aiCars[i].Draw();
+    }
+    game->car.Draw();
+    EndMode2D();
 
-  HudDraw(game);
+    HudDraw(game);
+  }
 
   if (IsKeyDown(KEY_F5)) {
     Vector2 sp = GetWorldToScreen2D(game->car.position, game->camera);

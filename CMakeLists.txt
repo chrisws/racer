@@ -17,6 +17,7 @@ add_executable(racer
   src/effects.c
   src/hud.cpp
   src/audio.c
+  src/first_person.cpp
 )
 target_link_libraries(racer PRIVATE raylib)
 target_include_directories(racer PRIVATE src)

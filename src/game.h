@@ -17,8 +17,14 @@ typedef enum {
   GAME_FINISHED,
 } GameState;
 
+typedef enum {
+  VIEW_FIRST_PERSON,
+  VIEW_TOP_DOWN,
+} ViewMode;
+
 struct Game {
   GameState state;
+  ViewMode viewMode;
   PlayerCar car;
   Track track;
   Effects effects;

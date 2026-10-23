@@ -4,6 +4,7 @@
 
 static void InitGame(Game *game) {
   game->state = GAME_MENU;
+  game->viewMode = VIEW_FIRST_PERSON;
   game->lap = 0;
   game->totalLaps = 3;
   game->lapTime = 0.0f;
