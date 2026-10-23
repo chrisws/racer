@@ -23,8 +23,8 @@ static void WorldToLocal(const Game *game, Vector2 world, float *lx, float *ly) 
   float dy = world.y - game->car.position.y;
   float c = cosf(game->car.angle);
   float s = sinf(game->car.angle);
-  *lx = dx * c - dy * s;
-  *ly = dx * s + dy * c;
+  *lx = -dx * s + dy * c;
+  *ly = dx * c + dy * s;
 }
 
 static bool Project(float lx, float ly, float steerOff, float *sx, float *sy, float *scale) {
