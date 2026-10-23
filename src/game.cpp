@@ -75,12 +75,35 @@ void GameDrawCountdown(Game *game) {
   }
 
   int remaining = (int)ceilf(game->countdownTimer);
+
+  // F1 start lights: 5 circles, light up during last 5 seconds
+  int lightY = 160;
+  int lightR = 28;
+  int lightGap = 70;
+  int startX = 640 - 2 * lightGap;
+
+  for (int i = 0; i < 5; i++) {
+    int cx = startX + i * lightGap;
+    bool lit = (remaining <= (5 - i)) && (remaining > 0);
+    Color col = lit ? RED : (Color){60, 60, 60, 255};
+    DrawCircle(cx, lightY, lightR, col);
+    DrawCircleLines(cx, lightY, lightR, (Color){100, 100, 100, 255});
+    if (lit) {
+      // Glow effect
+      DrawCircle(cx, lightY, lightR - 8, (Color){255, 100, 100, 180});
+    }
+  }
+
   char buf[64];
-  snprintf(buf, sizeof(buf), "%d", remaining);
-  int textW = MeasureText(buf, 120);
-  DrawText(buf, 640 - textW / 2, 250, 120, (remaining <= 5) ? RED : WHITE);
-  DrawText("GET READY...", 540, 420, 30, LIGHTGRAY);
-  DrawText("ESC to cancel", 570, 470, 20, GRAY);
+  if (remaining > 0) {
+    snprintf(buf, sizeof(buf), "%d", remaining);
+    int textW = MeasureText(buf, 100);
+    DrawText(buf, 640 - textW / 2, 220, 100, (remaining <= 5) ? RED : WHITE);
+    DrawText("GET READY...", 540, 380, 30, LIGHTGRAY);
+  } else {
+    DrawText("GO!", 580, 220, 100, LIME);
+  }
+  DrawText("ESC to cancel", 570, 440, 20, GRAY);
 }
 
 void GameUpdateRacing(Game *game) {
