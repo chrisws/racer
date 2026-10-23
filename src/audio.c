@@ -118,6 +118,23 @@ void AudioPlayStartBeep(void) {
   PlaySound(beepSound);
 }
 
+void AudioPlayCountdownBeep(int remaining) {
+  if (remaining > 3) {
+    // "Get ready" — lower, softer
+    SetSoundPitch(beepSound, 0.75f);
+    SetSoundVolume(beepSound, 0.5f);
+  } else if (remaining > 0) {
+    // F1 lights — sharp, loud
+    SetSoundPitch(beepSound, 1.0f);
+    SetSoundVolume(beepSound, 0.9f);
+  } else {
+    // "GO!" — bright, high
+    SetSoundPitch(beepSound, 1.5f);
+    SetSoundVolume(beepSound, 1.0f);
+  }
+  PlaySound(beepSound);
+}
+
 void AudioPlaySkid(void) {
   if (!IsSoundPlaying(skidSound)) {
     PlaySound(skidSound);

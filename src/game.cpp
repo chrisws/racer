@@ -29,6 +29,8 @@ void GameDrawMenu(Game *game) {
   DrawText("Press ENTER to start", 500, 400, 20, LIGHTGRAY);
 }
 
+static int lastCountdownSec = -1;
+
 void GameUpdateCountdown(Game *game) {
   float dt = GetFrameTime();
   game->countdownTimer -= dt;
@@ -38,12 +40,23 @@ void GameUpdateCountdown(Game *game) {
   }
   game->camera.target = (Vector2){450.0f, 900.0f};
   game->camera.zoom = 2.0f;
+
+  int sec = (int)ceilf(game->countdownTimer);
+  if (sec != lastCountdownSec) {
+    lastCountdownSec = sec;
+    if (sec >= 0) {
+      AudioPlayCountdownBeep(sec);
+    }
+  }
+
   if (IsKeyPressed(KEY_ESCAPE)) {
     game->state = GAME_MENU;
+    lastCountdownSec = -1;
   }
   if (game->countdownTimer <= 0.0f) {
     game->countdownTimer = 0.0f;
     game->state = GAME_RACING;
+    lastCountdownSec = -1;
   }
 }
 
