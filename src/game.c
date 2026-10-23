@@ -75,17 +75,20 @@ void GameDrawMenu(Game *game) {
   game->camera.target.x += (game->car.position.x - game->camera.target.x) * lerp;
   game->camera.target.y += (game->car.position.y - game->camera.target.y) * lerp;
 
-  // --- Experimental keys ---
+  // --- Zoom controls (persistent) ---
   if (IsKeyDown(KEY_F2)) {
-    game->camera.zoom = 2.0f;   // zoom in close
-  } else if (IsKeyDown(KEY_F3)) {
-    game->camera.zoom = 0.5f;   // zoom out wide
-  } else if (IsKeyDown(KEY_F4)) {
-    // Hard-lock camera to car (no smoothing)
+    game->camera.zoom += 1.0f * dt;   // zoom in
+    if (game->camera.zoom > 3.0f) game->camera.zoom = 3.0f;
+  }
+  if (IsKeyDown(KEY_F3)) {
+    game->camera.zoom -= 1.0f * dt;   // zoom out
+    if (game->camera.zoom < 0.3f) game->camera.zoom = 0.3f;
+  }
+
+  // --- Experimental: F4 hard-lock camera ---
+  if (IsKeyDown(KEY_F4)) {
     game->camera.target = game->car.position;
     game->camera.zoom = 1.5f;
-  } else {
-    game->camera.zoom = 1.0f;
   }
 
   // Log every 30 frames
@@ -182,7 +185,7 @@ void GameDrawMenu(Game *game) {
   }
 
   // Key hints
-  DrawText("F1:debug F2:zoomIn F3:zoomOut F4:lockCam F5:crosshair", 10, 690, 16, GRAY);
+  DrawText("F2:zoom+ F3:zoom- F4:lockCam F5:crosshair", 10, 690, 16, GRAY);
 }
 
 // --- Finished State ---
