@@ -1,23 +1,25 @@
 #ifndef AI_CAR_H
 #define AI_CAR_H
 
-#include "raylib.h"
+#include "car.h"
 #include "track.h"
 
 #define MAX_AI_CARS 3
 
-typedef struct {
-  Vector2 position;
-  float angle;
-  float speed;
+class AICar : public Car {
+public:
   float targetSpeed;
   int waypointIndex;
-  Color color;
   int lap;
-} AICar;
+  const Track *track;
 
-void AICarsInit(AICar *cars, int count, const Track *track);
-void AICarUpdate(AICar *car, float dt, const Track *track);
-void AICarDraw(const AICar *car);
+  AICar() : Car(), targetSpeed(200.0f), waypointIndex(1), lap(0), track(nullptr) {}
+  AICar(Vector2 pos, float ang, Color col, float tSpeed)
+      : Car(pos, ang, col), targetSpeed(tSpeed), waypointIndex(1), lap(0), track(nullptr) {}
+
+  void Update(float dt) override;
+
+  static void InitAll(AICar *cars, int count, const Track *track);
+};
 
 #endif // AI_CAR_H

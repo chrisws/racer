@@ -3,6 +3,10 @@
 
 #include "raylib.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MAX_SKID_MARKS 128
 
 typedef struct {
@@ -20,5 +24,9 @@ void EffectsInit(Effects *fx);
 void EffectsUpdate(Effects *fx, float dt);
 void EffectsAddSkidMark(Effects *fx, Vector2 pos);
 void EffectsDraw(const Effects *fx);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // EFFECTS_H

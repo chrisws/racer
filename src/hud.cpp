@@ -48,7 +48,7 @@ void HudDraw(const Game *game) {
     DrawLineEx(ma, mb, 2.0f, DARKGRAY);
   }
 
-   // Draw AI car dots on minimap
+  // Draw AI car dots on minimap
   for (int i = 0; i < game->aiCarCount; i++) {
     Vector2 aiMM = {
       MINIMAP_X + game->aiCars[i].position.x * MINIMAP_SCALE,

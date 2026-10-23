@@ -3,11 +3,19 @@
 
 #include "raylib.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void AudioInit(void);
 void AudioShutdown(void);
 void AudioUpdateEngine(float speed, float maxSpeed);
 void AudioUpdateAICar(int index, float distance, float relativeSpeed, float aiSpeed);
 void AudioPlayStartBeep(void);
 void AudioPlaySkid(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // AUDIO_H
