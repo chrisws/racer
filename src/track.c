@@ -32,7 +32,14 @@ void TrackInit(Track *track) {
 
 void TrackDraw(const Track *track) {
   Color trackColor = DARKGRAY;
+  Color shoulderColor = (Color){ 40, 40, 40, 255 };
   Color edgeColor = YELLOW;
+
+  // Draw shoulder/runoff (wider, darker) for visual context
+  for (int i = 0; i < track->pointCount; i++) {
+    int next = (i + 1) % track->pointCount;
+    DrawLineEx(track->points[i], track->points[next], track->halfWidth * 3.0f, shoulderColor);
+  }
 
   // Draw track surface as thick line segments
   for (int i = 0; i < track->pointCount; i++) {
