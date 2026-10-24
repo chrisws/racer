@@ -8,7 +8,7 @@
 #include "track.h"
 #include "effects.h"
 
-#define COUNTDOWN_DURATION 10.0f
+#define COUNTDOWN_DURATION 5.0f
 
 typedef enum {
   GAME_MENU,
@@ -21,6 +21,17 @@ typedef enum {
   VIEW_FIRST_PERSON,
   VIEW_TOP_DOWN,
 } ViewMode;
+
+#define MAX_BOOST_COINS 8
+#define PIT_STOP_DURATION 3.0f
+
+typedef enum {
+  WARN_NONE = 0,
+  WARN_OVERHEAT = 1,
+  WARN_OIL = 2,
+  WARN_SPARK = 4,
+  WARN_FUEL = 8,
+} WarningLight;
 
 struct Game {
   GameState state;
@@ -38,6 +49,35 @@ struct Game {
   float countdownTimer;
   float offTrackTimer;
   Camera2D camera;
+
+  // Fuel
+  float fuel;
+
+  // Tires (FL, FR, RL, RR)
+  float tirePressure[4];
+
+  // Warning lights (bitmask)
+  int warningLights;
+  float warningTimer;
+
+  // Turbo boost
+  float boostTimer;
+  int boostCoins[MAX_BOOST_COINS];
+  int boostCoinCount;
+  int boostCollected[MAX_BOOST_COINS];
+
+  // Hypersonic line
+  int hypersonicIdx;
+  float hypersonicTimer;
+
+  // Pit stop
+  int pitZoneIdx;
+  bool inPitStop;
+  float pitStopTimer;
+  float engineTuning; // 0.0 - 1.0
+
+  // Spectators
+  int spectatorCount;
 };
 
 void GameUpdateMenu(Game *game);

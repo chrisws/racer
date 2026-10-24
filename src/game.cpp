@@ -111,9 +111,31 @@ void GameUpdateRacing(Game *game) {
   game->raceTime += dt;
   game->lapTime += dt;
 
+  // --- Pit stop handling ---
+  if (game->inPitStop) {
+    game->pitStopTimer -= dt;
+    game->car.speed = 0.0f;
+    if (IsKeyDown(KEY_LEFT)) {
+      game->engineTuning -= 0.5f * dt;
+      if (game->engineTuning < 0.0f) game->engineTuning = 0.0f;
+    }
+    if (IsKeyDown(KEY_RIGHT)) {
+      game->engineTuning += 0.5f * dt;
+      if (game->engineTuning > 1.0f) game->engineTuning = 1.0f;
+    }
+    if (game->pitStopTimer <= 0.0f) {
+      game->inPitStop = false;
+      for (int i = 0; i < 4; i++) game->tirePressure[i] = 100.0f;
+    }
+    EffectsUpdate(&game->effects, dt);
+    return;
+  }
+
   game->car.Update(dt);
 
-  if (!TrackIsOnTrack(&game->track, game->car.position)) {
+  bool onTrack = TrackIsOnTrack(&game->track, game->car.position);
+
+  if (!onTrack) {
     game->car.speed *= 0.95f;
     game->offTrackTimer += dt;
     if (game->offTrackTimer > 2.0f) {
@@ -124,6 +146,90 @@ void GameUpdateRacing(Game *game) {
     game->offTrackTimer = 0.0f;
   }
 
+  // --- Fuel drain ---
+  float speedNorm = fabsf(game->car.speed) / 400.0f;
+  float fuelDrain = 0.3f + speedNorm * 1.2f; // base + speed
+  if (!onTrack) fuelDrain *= 2.0f;           // off-track penalty
+  if (speedNorm > 0.8f) fuelDrain *= 1.5f;   // speeding penalty
+  game->fuel -= fuelDrain * dt;
+  if (game->fuel < 0.0f) game->fuel = 0.0f;
+  if (game->fuel <= 0.0f) {
+    game->car.speed *= 0.9f; // sputter to a stop
+  }
+
+  // --- Tire pressure drain ---
+  float tireDrain = 0.15f + speedNorm * 0.3f;
+  if (!onTrack) tireDrain *= 2.5f;
+  if (game->car.drift > 0.3f) tireDrain *= 1.8f;
+  for (int i = 0; i < 4; i++) {
+    game->tirePressure[i] -= tireDrain * dt;
+    if (game->tirePressure[i] < 0.0f) game->tirePressure[i] = 0.0f;
+  }
+  // Low tires reduce effective speed
+  float avgTire = (game->tirePressure[0] + game->tirePressure[1] +
+                   game->tirePressure[2] + game->tirePressure[3]) / 4.0f;
+  if (avgTire < 30.0f) {
+    game->car.speed *= (0.8f + 0.2f * avgTire / 30.0f);
+  }
+
+  // --- Random warning lights ---
+  game->warningTimer -= dt;
+  if (game->warningTimer <= 0.0f) {
+    game->warningTimer = 4.0f + (float)GetRandomValue(0, 6);
+    int roll = GetRandomValue(0, 100);
+    if (roll < 20) game->warningLights |= WARN_OVERHEAT;
+    else if (roll < 35) game->warningLights |= WARN_OIL;
+    else if (roll < 45) game->warningLights |= WARN_SPARK;
+    // Auto-clear after a while
+    game->warningLights &= ~WARN_FUEL;
+    if (game->fuel < 20.0f) game->warningLights |= WARN_FUEL;
+  }
+  // Clear random warnings after 8s
+  if (game->warningTimer > 8.0f) {
+    game->warningLights &= ~(WARN_OVERHEAT | WARN_OIL | WARN_SPARK);
+  }
+
+  // --- Boost coin collection ---
+  int N = game->track.pointCount;
+  for (int i = 0; i < game->boostCoinCount; i++) {
+    if (game->boostCollected[i]) continue;
+    Vector2 coinPos = game->track.points[game->boostCoins[i] % N];
+    float dx = game->car.position.x - coinPos.x;
+    float dy = game->car.position.y - coinPos.y;
+    if (dx * dx + dy * dy < 400.0f) { // 20 unit radius
+      game->boostCollected[i] = 1;
+      game->boostTimer = 3.0f; // 3 second boost
+    }
+  }
+
+  // --- Hypersonic line ---
+  Vector2 hypPos = game->track.points[game->hypersonicIdx % N];
+  float hdx = game->car.position.x - hypPos.x;
+  float hdy = game->car.position.y - hypPos.y;
+  if (hdx * hdx + hdy * hdy < 625.0f) { // 25 unit radius
+    if (game->hypersonicTimer <= 0.0f) {
+      game->hypersonicTimer = 5.0f; // 5 second hypersonic boost
+    }
+  }
+  if (game->hypersonicTimer > 0.0f) game->hypersonicTimer -= dt;
+
+  // --- Pit stop zone ---
+  Vector2 pitPos = game->track.points[game->pitZoneIdx % N];
+  float pdx = game->car.position.x - pitPos.x;
+  float pdy = game->car.position.y - pitPos.y;
+  if (pdx * pdx + pdy * pdy < 900.0f && game->car.speed < 50.0f) { // 30 unit radius
+    game->inPitStop = true;
+    game->pitStopTimer = PIT_STOP_DURATION;
+  }
+
+  // --- Boost timers affect max speed ---
+  if (game->boostTimer > 0.0f) game->boostTimer -= dt;
+  float effectiveMax = 400.0f;
+  if (game->boostTimer > 0.0f) effectiveMax = 550.0f;
+  if (game->hypersonicTimer > 0.0f) effectiveMax = 700.0f;
+  if (game->car.speed > effectiveMax) game->car.speed = effectiveMax;
+
+  // --- Drift effects ---
   if (game->car.drift > 0.3f && fabsf(game->car.speed) > 50.0f) {
     EffectsAddSkidMark(&game->effects, game->car.position);
     AudioPlaySkid();
@@ -135,7 +241,7 @@ void GameUpdateRacing(Game *game) {
     game->aiCars[i].Update(dt);
   }
 
-  AudioUpdateEngine(game->car.speed, 400.0f);
+  AudioUpdateEngine(game->car.speed, effectiveMax);
 
   for (int i = 0; i < game->aiCarCount && i < 3; i++) {
     AICar *ai = &game->aiCars[i];
@@ -172,9 +278,9 @@ void GameUpdateRacing(Game *game) {
   debugFrame++;
   if (debugFrame % 30 == 0) {
     fprintf(stderr,
-      "[DBG] car=(%.1f,%.1f) cam_tgt=(%.1f,%.1f) zoom=%.2f\n",
+      "[DBG] car=(%.1f,%.1f) fuel=%.1f boost=%.1f hyp=%.1f\n",
       game->car.position.x, game->car.position.y,
-      game->camera.target.x, game->camera.target.y, game->camera.zoom);
+      game->fuel, game->boostTimer, game->hypersonicTimer);
   }
 
   if (IsKeyPressed(KEY_ESCAPE)) {

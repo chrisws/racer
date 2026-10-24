@@ -220,6 +220,162 @@ static void DrawScenery(const Game *game, float steerOff) {
   }
 }
 
+// === Spectators ===
+
+static void DrawSpectators(const Game *game, float steerOff) {
+  const Track *track = &game->track;
+  int N = track->pointCount;
+  int count = game->spectatorCount;
+  if (count <= 0) return;
+
+  for (int i = 0; i < count; i++) {
+    int trackIdx = (i * N) / count;
+    int nidx = (trackIdx + 1) % N;
+    Vector2 p = track->points[trackIdx];
+    Vector2 np = track->points[nidx];
+
+    float dx = np.x - p.x;
+    float dy = np.y - p.y;
+    float len = sqrtf(dx * dx + dy * dy);
+    if (len < 0.001f) continue;
+    float px = -dy / len;
+    float py = dx / len;
+
+    float side = (i % 2 == 0) ? 1.0f : -1.0f;
+    float offset = track->halfWidth * 1.5f;
+
+    Vector2 sp = { p.x + px * offset * side, p.y + py * offset * side };
+    float lx, ly;
+    WorldToLocal(game, sp, &lx, &ly);
+    float sx, sy, scale;
+    if (!Project(lx, ly, steerOff, &sx, &sy, &scale)) continue;
+
+    float bodyW = 6.0f * scale;
+    float bodyH = 12.0f * scale;
+    if (bodyW < 1.0f) continue;
+    if (bodyW > 40.0f) bodyW = 40.0f;
+
+    int r = 100 + (i * 37) % 155;
+    int g = 80 + (i * 53) % 175;
+    int b = 80 + (i * 71) % 175;
+    Color bodyCol = { (unsigned char)r, (unsigned char)g, (unsigned char)b, 255 };
+
+    float headR = 3.0f * scale;
+    DrawCircle((int)sx, (int)(sy - bodyH * 0.8f), (int)headR, (Color){220, 180, 150, 255});
+    DrawRectangle((int)(sx - bodyW / 2), (int)(sy - bodyH * 0.6f), (int)bodyW, (int)(bodyH * 0.6f), bodyCol);
+  }
+}
+
+// === Boost coins ===
+
+static void DrawBoostCoins(const Game *game, float steerOff) {
+  const Track *track = &game->track;
+  int N = track->pointCount;
+
+  for (int i = 0; i < game->boostCoinCount; i++) {
+    if (game->boostCollected[i]) continue;
+
+    Vector2 coinPos = track->points[game->boostCoins[i] % N];
+    float lx, ly;
+    WorldToLocal(game, coinPos, &lx, &ly);
+    float sx, sy, scale;
+    if (!Project(lx, ly, steerOff, &sx, &sy, &scale)) continue;
+
+    float r = 10.0f * scale;
+    if (r < 2.0f) continue;
+    if (r > 60.0f) r = 60.0f;
+
+    DrawCircle((int)sx, (int)sy, (int)(r * 1.3f), (Color){255, 200, 0, 80});
+    DrawCircle((int)sx, (int)sy, (int)r, GOLD);
+    DrawCircleLines((int)sx, (int)sy, (int)r, (Color){255, 255, 100, 255});
+    DrawLine((int)(sx - r * 0.4f), (int)sy, (int)(sx + r * 0.4f), (int)sy, (Color){255, 255, 200, 255});
+    DrawLine((int)sx, (int)(sy - r * 0.4f), (int)sx, (int)(sy + r * 0.4f), (Color){255, 255, 200, 255});
+  }
+}
+
+// === Hypersonic line ===
+
+static void DrawHypersonicLine(const Game *game, float steerOff) {
+  const Track *track = &game->track;
+  int N = track->pointCount;
+  int idx = game->hypersonicIdx % N;
+  int nidx = (idx + 1) % N;
+
+  Vector2 p = track->points[idx];
+  Vector2 np = track->points[nidx];
+
+  float dx = np.x - p.x;
+  float dy = np.y - p.y;
+  float len = sqrtf(dx * dx + dy * dy);
+  if (len < 0.001f) return;
+  float px = -dy / len;
+  float py = dx / len;
+
+  Vector2 left = { p.x + px * track->halfWidth, p.y + py * track->halfWidth };
+  Vector2 right = { p.x - px * track->halfWidth, p.y - py * track->halfWidth };
+
+  float llx, lly, rlx, rly;
+  WorldToLocal(game, left, &llx, &lly);
+  WorldToLocal(game, right, &rlx, &rly);
+
+  float lsx, lsy, lsc, rsx, rsy, rsc;
+  if (!Project(llx, lly, steerOff, &lsx, &lsy, &lsc)) return;
+  if (!Project(rlx, rly, steerOff, &rsx, &rsy, &rsc)) return;
+
+  float thickness = 4.0f * lsc;
+  if (thickness < 1.0f) thickness = 1.0f;
+  if (thickness > 12.0f) thickness = 12.0f;
+
+  DrawLineEx((Vector2){lsx, lsy}, (Vector2){rsx, rsy}, thickness * 2.5f, (Color){255, 0, 255, 60});
+  DrawLineEx((Vector2){lsx, lsy}, (Vector2){rsx, rsy}, thickness, (Color){255, 0, 255, 255});
+  DrawLineEx((Vector2){lsx, lsy}, (Vector2){rsx, rsy}, thickness * 0.4f, (Color){255, 200, 255, 255});
+}
+
+// === Pit zone indicator ===
+
+static void DrawPitZone(const Game *game, float steerOff) {
+  const Track *track = &game->track;
+  int N = track->pointCount;
+  int idx = game->pitZoneIdx % N;
+  int nidx = (idx + 1) % N;
+
+  Vector2 p = track->points[idx];
+  Vector2 np = track->points[nidx];
+
+  float dx = np.x - p.x;
+  float dy = np.y - p.y;
+  float len = sqrtf(dx * dx + dy * dy);
+  if (len < 0.001f) return;
+  float px = -dy / len;
+  float py = dx / len;
+
+  Vector2 left = { p.x + px * track->halfWidth, p.y + py * track->halfWidth };
+  Vector2 right = { p.x - px * track->halfWidth, p.y - py * track->halfWidth };
+
+  float llx, lly, rlx, rly;
+  WorldToLocal(game, left, &llx, &lly);
+  WorldToLocal(game, right, &rlx, &rly);
+
+  float lsx, lsy, lsc, rsx, rsy, rsc;
+  if (!Project(llx, lly, steerOff, &lsx, &lsy, &lsc)) return;
+  if (!Project(rlx, rly, steerOff, &rsx, &rsy, &rsc)) return;
+
+  float thickness = 6.0f * lsc;
+  if (thickness < 2.0f) thickness = 2.0f;
+  if (thickness > 16.0f) thickness = 16.0f;
+
+  DrawLineEx((Vector2){lsx, lsy}, (Vector2){rsx, rsy}, thickness, (Color){255, 140, 0, 200});
+
+  float midX = (lsx + rsx) * 0.5f;
+  float midY = (lsy + rsy) * 0.5f;
+  float fontSize = 14.0f * lsc;
+  if (fontSize < 8.0f) fontSize = 8.0f;
+  if (fontSize > 30.0f) fontSize = 30.0f;
+  int fs = (int)fontSize;
+  int tw = MeasureText("PIT", fs);
+  DrawText("PIT", (int)(midX - tw / 2), (int)(midY - fs * 1.5f), fs, (Color){255, 140, 0, 255});
+}
+
 // === AI Cars in windshield ===
 
 static void DrawAICarsAhead(const Game *game, float steerOff) {
@@ -409,6 +565,71 @@ static void DrawDashboard(const Game *game) {
     DrawText("OFF TRACK!", 750, 570, 28, RED);
   }
 
+  // --- Fuel gauge ---
+  int fgX = 580;
+  int fgY = 660;
+  int fgW = 150;
+  int fgH = 14;
+  DrawRectangle(fgX, fgY, fgW, fgH, (Color){40, 40, 45, 255});
+  DrawRectangleLines(fgX, fgY, fgW, fgH, GRAY);
+  int fuelFill = (int)(fgW * game->fuel / 100.0f);
+  Color fuelCol = (game->fuel < 20.0f) ? RED : (game->fuel < 40.0f) ? ORANGE : LIME;
+  DrawRectangle(fgX, fgY, fuelFill, fgH, fuelCol);
+  DrawText("FUEL", fgX, fgY - 16, 12, LIGHTGRAY);
+
+  // --- Tire pressure (4 small bars) ---
+  const char *tireLabels[4] = {"FL", "FR", "RL", "RR"};
+  for (int i = 0; i < 4; i++) {
+    int tx = 750 + i * 35;
+    int ty = 660;
+    int tw = 28;
+    int th = 14;
+    DrawRectangle(tx, ty, tw, th, (Color){40, 40, 45, 255});
+    int tFill = (int)(tw * game->tirePressure[i] / 100.0f);
+    Color tCol = (game->tirePressure[i] < 30.0f) ? RED : (game->tirePressure[i] < 60.0f) ? ORANGE : LIME;
+    DrawRectangle(tx, ty, tFill, th, tCol);
+    DrawText(tireLabels[i], tx + 4, ty - 14, 10, LIGHTGRAY);
+  }
+
+  // --- Warning lights ---
+  int wlX = 750;
+  int wlY = 690;
+  if (game->warningLights & WARN_OVERHEAT) { DrawText("TEMP", wlX, wlY, 12, RED); wlX += 45; }
+  if (game->warningLights & WARN_OIL) { DrawText("OIL", wlX, wlY, 12, ORANGE); wlX += 40; }
+  if (game->warningLights & WARN_SPARK) { DrawText("SPK", wlX, wlY, 12, YELLOW); wlX += 40; }
+  if (game->warningLights & WARN_FUEL) { DrawText("FUEL", wlX, wlY, 12, RED); }
+
+  // --- Boost indicators ---
+  if (game->boostTimer > 0.0f) {
+    DrawText("TURBO!", 580, 530, 24, (Color){0, 255, 255, 255});
+  }
+  if (game->hypersonicTimer > 0.0f) {
+    DrawText("HYPersonic!", 580, 505, 24, (Color){255, 0, 255, 255});
+  }
+
+  // --- Pit stop overlay ---
+  if (game->inPitStop) {
+    DrawRectangle(0, 0, 1280, 720, (Color){0, 0, 0, 180});
+    DrawText("PIT STOP", 540, 150, 60, GOLD);
+    DrawText("Fixing tires...", 540, 250, 30, WHITE);
+    snprintf(buf, sizeof(buf), "%.1fs", game->pitStopTimer);
+    DrawText(buf, 600, 300, 40, LIME);
+
+    // Engine tuning
+    DrawText("ENGINE TUNING [LEFT/RIGHT]", 440, 380, 24, WHITE);
+    int tuneW = 300;
+    int tuneX = 640 - tuneW / 2;
+    int tuneY = 420;
+    DrawRectangle(tuneX, tuneY, tuneW, 20, (Color){40, 40, 45, 255});
+    DrawRectangleLines(tuneX, tuneY, tuneW, 20, GRAY);
+    int tuneFill = (int)(tuneW * game->engineTuning);
+    DrawRectangle(tuneX, tuneY, tuneFill, 20, (Color){0, 150, 255, 255});
+    snprintf(buf, sizeof(buf), "%.0f%%", game->engineTuning * 100.0f);
+    DrawText(buf, 620, 450, 20, WHITE);
+    DrawText("Low = safe  |  High = power (risky)", 470, 480, 16, LIGHTGRAY);
+
+  }
+
   // --- Minimap (right) ---
   int mmX = 1060;
   int mmY = 530;
@@ -455,6 +676,18 @@ void FirstPersonDraw(const Game *game) {
 
   // Scenery
   DrawScenery(game, steerOff);
+
+  // Spectators
+  DrawSpectators(game, steerOff);
+
+  // Boost coins
+  DrawBoostCoins(game, steerOff);
+
+  // Hypersonic line
+  DrawHypersonicLine(game, steerOff);
+
+  // Pit zone
+  DrawPitZone(game, steerOff);
 
   // AI cars ahead
   DrawAICarsAhead(game, steerOff);
