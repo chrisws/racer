@@ -633,6 +633,7 @@ static void DrawDashboard(const Game *game) {
     snprintf(buf, sizeof(buf), "%.0f%%", game->engineTuning * 100.0f);
     DrawText(buf, 620, 450, 20, WHITE);
     DrawText("Low = safe  |  High = power (risky)", 470, 480, 16, LIGHTGRAY);
+    DrawText("Press SPACE to leave pit", 500, 530, 22, LIME);
 
   }
 

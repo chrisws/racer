@@ -1,5 +1,7 @@
 # Racer
 
+![badge](.hali/badge.svg)
+
 A 2D top-down racing game built with [raylib](https://www.raylib.com/). Race against AI cars on a circuit with chicanes and kinks.
 
 ## Features

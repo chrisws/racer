@@ -139,7 +139,7 @@ void GameUpdateRacing(Game *game) {
       game->engineTuning += 0.5f * dt;
       if (game->engineTuning > 1.0f) game->engineTuning = 1.0f;
     }
-    if (game->pitStopTimer <= 0.0f) {
+    if (IsKeyPressed(KEY_SPACE) || game->pitStopTimer <= 0.0f) {
       game->inPitStop = false;
       for (int i = 0; i < 4; i++) game->tirePressure[i] = 100.0f;
     }

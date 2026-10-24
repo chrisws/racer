@@ -81,10 +81,45 @@ void AudioInit(void) {
   skidSound = LoadSoundFromWave(skidWave);
   UnloadWave(skidWave);
 
-  // Chime: bright 1200 Hz tone, 300 ms
-  Wave chimeWave = GenerateToneWave(1200.0f, 44100, 300);
-  chimeSound = LoadSoundFromWave(chimeWave);
-  UnloadWave(chimeWave);
+  // Chime: two-tone "cha-ching" (1500 Hz 80ms + 2200 Hz 220ms)
+  {
+    int sr = 44100;
+    int dur1 = 80, dur2 = 220;
+    int n1 = (sr * dur1) / 1000;
+    int n2 = (sr * dur2) / 1000;
+    int total = n1 + n2;
+    Wave chimeWave;
+    chimeWave.frameCount = total;
+    chimeWave.sampleRate = sr;
+    chimeWave.sampleSize = 16;
+    chimeWave.channels = 1;
+    chimeWave.data = (unsigned char *)MemAlloc(total * 2);
+    for (int i = 0; i < total; i++) {
+      float t = (float)i / sr;
+      float val;
+      if (i < n1) {
+        val = sinf(2.0f * PI * 1500.0f * t);
+        val += 0.4f * sinf(2.0f * PI * 3000.0f * t);
+        val /= 1.4f;
+        // quick fade-out at end of "cha"
+        int rem = n1 - i;
+        if (rem < sr / 20) val *= (float)rem / (sr / 20);
+      } else {
+        float t2 = (float)(i - n1) / sr;
+        val = sinf(2.0f * PI * 2200.0f * t2);
+        val += 0.5f * sinf(2.0f * PI * 4400.0f * t2);
+        val += 0.2f * sinf(2.0f * PI * 6600.0f * t2);
+        val /= 1.7f;
+        // fade-out at end of "ching"
+        int rem = total - i;
+        int fade = sr / 8;
+        if (rem < fade) val *= (float)rem / fade;
+      }
+      ((short *)chimeWave.data)[i] = (short)(val * 32767 * 0.4f);
+    }
+    chimeSound = LoadSoundFromWave(chimeWave);
+    UnloadWave(chimeWave);
+  }
 }
 
 void AudioShutdown(void) {
