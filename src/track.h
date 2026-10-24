@@ -20,6 +20,7 @@ void TrackDraw(const Track *track);
 int TrackIsOnTrack(const Track *track, Vector2 pos);
 float TrackGetNearestDistance(const Track *track, Vector2 pos);
 Vector2 TrackGetNearestPoint(const Track *track, Vector2 pos);
+int TrackGetNearestSegment(const Track *track, Vector2 pos);
 
 #ifdef __cplusplus
 }

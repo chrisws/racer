@@ -1,25 +1,30 @@
 #include "track.h"
 #include <math.h>
 
-// Circuit with chicanes, kinks, and varied curves
+// Mount Panorama-inspired circuit (Bathurst 1000, NSW Australia)
+// Key sections: Main Straight, The Loop, The Dip, The Pylon,
+// The Cutting Room, The Hairpin, The Esses, The Chicanes
 static const Vector2 defaultTrackPoints[] = {
-  { 300,  900 },   //  0: start/finish (bottom-left)
-  { 650,  900 },   //  1: bottom straight
-  { 900,  810 },   //  2: chicane dip
-  { 1100, 900 },   //  3: chicane rise
-  { 1400, 850 },   //  4: bottom-right approach
-  { 1550, 650 },   //  5: right curve
-  { 1480, 450 },   //  6: right kink (inward)
-  { 1550, 250 },   //  7: right kink (outward)
-  { 1350, 100 },   //  8: top-right
-  { 1050, 180 },   //  9: top chicane entry
-  { 850,  100 },   // 10: top chicane mid
-  { 650,  180 },   // 11: top chicane exit
-  { 350,  100 },   // 12: top-left
-  { 150,  250 },   // 13: left curve
-  { 200,  450 },   // 14: left kink (outward)
-  { 150,  650 },   // 15: left kink (inward)
-  { 250,  850 },   // 16: bottom-left curve
+  { 200,  900 },   //  0: start/finish (bottom-left)
+  { 600,  900 },   //  1: main straight
+  { 1000, 900 },   //  2: main straight
+  { 1350, 880 },   //  3: approach to The Loop
+  { 1500, 750 },   //  4: The Loop (tight left)
+  { 1400, 600 },   //  5: The Loop exit
+  { 1250, 500 },   //  6: The Dip (sweeping right)
+  { 1350, 350 },   //  7: The Pylon (tight right)
+  { 1200, 200 },   //  8: The Cutting Room entry
+  { 1050, 250 },   //  9: The Cutting Room chicane
+  { 900,  150 },   // 10: The Hairpin (tight left)
+  { 750,  200 },   // 11: The Hairpin exit
+  { 650,  300 },   // 12: The Esses entry
+  { 550,  250 },   // 13: The Esses mid
+  { 450,  350 },   // 14: The Esses exit
+  { 350,  300 },   // 15: The Chicanes entry
+  { 250,  400 },   // 16: The Chicanes mid
+  { 200,  550 },   // 17: The Chicanes exit
+  { 150,  700 },   // 18: back curve
+  { 200,  850 },   // 19: approach to start
 };
 
 void TrackInit(Track *track) {
@@ -143,4 +148,18 @@ Vector2 TrackGetNearestPoint(const Track *track, Vector2 pos) {
 
 int TrackIsOnTrack(const Track *track, Vector2 pos) {
   return TrackGetNearestDistance(track, pos) <= track->halfWidth;
+}
+
+int TrackGetNearestSegment(const Track *track, Vector2 pos) {
+  int nearest = 0;
+  float minDist = 1e9f;
+  for (int i = 0; i < track->pointCount; i++) {
+    int next = (i + 1) % track->pointCount;
+    float d = PointToSegmentDist(pos, track->points[i], track->points[next]);
+    if (d < minDist) {
+      minDist = d;
+      nearest = i;
+    }
+  }
+  return nearest;
 }

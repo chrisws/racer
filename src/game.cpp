@@ -19,6 +19,22 @@ void GameUpdateMenu(Game *game) {
     AICar::InitAll(game->aiCars, game->aiCarCount, &game->track);
     game->camera.target = (Vector2){450.0f, 900.0f};
     game->camera.zoom = 2.0f;
+    game->fuel = 100.0f;
+    for (int i = 0; i < 4; i++) game->tirePressure[i] = 100.0f;
+    game->warningLights = WARN_NONE;
+    game->warningTimer = 5.0f;
+    game->boostTimer = 0.0f;
+    game->hypersonicTimer = 0.0f;
+    game->inPitStop = false;
+    game->pitStopTimer = 0.0f;
+    game->engineTuning = 0.5f;
+    for (int i = 0; i < MAX_BOOST_COINS; i++) game->boostCollected[i] = 0;
+    game->lastTrackIdx = 0;
+    game->kangarooTimer = 8.0f;
+    game->kangarooJumpT = 0.0f;
+    game->kangarooActive = 0;
+    game->kangarooHit = 0;
+    game->windshieldBroken = 0;
     AudioPlayStartBeep();
   }
 }
@@ -155,6 +171,10 @@ void GameUpdateRacing(Game *game) {
   if (game->fuel < 0.0f) game->fuel = 0.0f;
   if (game->fuel <= 0.0f) {
     game->car.speed *= 0.9f; // sputter to a stop
+    if (game->car.speed < 1.0f) {
+      game->state = GAME_FINISHED;
+      return;
+    }
   }
 
   // --- Tire pressure drain ---
@@ -199,16 +219,38 @@ void GameUpdateRacing(Game *game) {
     if (dx * dx + dy * dy < 400.0f) { // 20 unit radius
       game->boostCollected[i] = 1;
       game->boostTimer = 3.0f; // 3 second boost
+      AudioPlayChime();
     }
   }
 
-  // --- Hypersonic line ---
+  // --- Lap detection ---
+  int curSeg = TrackGetNearestSegment(&game->track, game->car.position);
+  int prevSeg = game->lastTrackIdx;
+  game->lastTrackIdx = curSeg;
+  // Detect crossing start/finish: high segment → low segment (wrap)
+  if (prevSeg > N / 2 && curSeg < N / 4) {
+    game->lap++;
+    if (game->lapTime > 0.0f) {
+      if (game->bestLap == 0.0f || game->lapTime < game->bestLap) {
+        game->bestLap = game->lapTime;
+      }
+    }
+    game->lapTime = 0.0f;
+    if (game->lap >= game->totalLaps) {
+      game->state = GAME_FINISHED;
+      return;
+    }
+  }
+
+  // --- Hypersonic / Nitro strip ---
   Vector2 hypPos = game->track.points[game->hypersonicIdx % N];
   float hdx = game->car.position.x - hypPos.x;
   float hdy = game->car.position.y - hypPos.y;
   if (hdx * hdx + hdy * hdy < 625.0f) { // 25 unit radius
     if (game->hypersonicTimer <= 0.0f) {
       game->hypersonicTimer = 5.0f; // 5 second hypersonic boost
+      game->car.speed += 100.0f;    // immediate acceleration kick
+      if (game->car.speed > 700.0f) game->car.speed = 700.0f;
     }
   }
   if (game->hypersonicTimer > 0.0f) game->hypersonicTimer -= dt;
@@ -283,6 +325,53 @@ void GameUpdateRacing(Game *game) {
       game->fuel, game->boostTimer, game->hypersonicTimer);
   }
 
+  // --- Kangaroo ---
+  if (!game->kangarooActive) {
+    game->kangarooTimer -= dt;
+    if (game->kangarooTimer <= 0.0f) {
+      // Spawn kangaroo: pick a random track segment ahead of the player
+      int spawnSeg = (curSeg + N / 4 + GetRandomValue(0, N / 4)) % N;
+      Vector2 sp = game->track.points[spawnSeg];
+      Vector2 spNext = game->track.points[(spawnSeg + 1) % N];
+      float sdx = spNext.x - sp.x;
+      float sdy = spNext.y - sp.y;
+      float slen = sqrtf(sdx * sdx + sdy * sdy);
+      if (slen > 0.001f) {
+        float spx = -sdy / slen;
+        float spy = sdx / slen;
+        // Start on one side, jump to the other
+        float side = (GetRandomValue(0, 1) == 0) ? 1.0f : -1.0f;
+        float offset = game->track.halfWidth * 2.0f;
+        game->kangarooPos.x = sp.x + spx * offset * side;
+        game->kangarooPos.y = sp.y + spy * offset * side;
+        // Store target (other side)
+        game->kangarooPos.x += spx * offset * 2.0f * (-side);
+        game->kangarooPos.y += spy * offset * 2.0f * (-side);
+        // Actually, let's store start and compute jump in draw
+        // For simplicity: kangarooPos is the landing spot, jump arc is computed
+        game->kangarooActive = 1;
+        game->kangarooJumpT = 0.0f;
+      }
+    }
+  } else {
+    game->kangarooJumpT += dt * 1.5f; // jump lasts ~0.67s
+    if (game->kangarooJumpT >= 1.0f) {
+      game->kangarooActive = 0;
+      game->kangarooTimer = 10.0f + (float)GetRandomValue(0, 10);
+    }
+    // Check collision with player car
+    float kdx = game->car.position.x - game->kangarooPos.x;
+    float kdy = game->car.position.y - game->kangarooPos.y;
+    if (kdx * kdx + kdy * kdy < 900.0f) { // 30 unit radius
+      if (!game->kangarooHit) {
+        game->kangarooHit = 1;
+        game->windshieldBroken = 1;
+        game->state = GAME_FINISHED;
+        return;
+      }
+    }
+  }
+
   if (IsKeyPressed(KEY_ESCAPE)) {
     game->state = GAME_MENU;
   }
@@ -330,14 +419,57 @@ void GameUpdateFinished(Game *game) {
   if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE)) {
     game->state = GAME_MENU;
   }
+  if (IsKeyPressed(KEY_R)) {
+    // Restart race directly
+    game->state = GAME_COUNTDOWN;
+    game->lap = 0;
+    game->lapTime = 0.0f;
+    game->bestLap = 0.0f;
+    game->raceTime = 0.0f;
+    game->countdownTimer = COUNTDOWN_DURATION;
+    game->car = PlayerCar((Vector2){400.0f, 900.0f}, 0.0f);
+    AICar::InitAll(game->aiCars, game->aiCarCount, &game->track);
+    game->camera.target = (Vector2){450.0f, 900.0f};
+    game->camera.zoom = 2.0f;
+    game->fuel = 100.0f;
+    for (int i = 0; i < 4; i++) game->tirePressure[i] = 100.0f;
+    game->warningLights = WARN_NONE;
+    game->warningTimer = 5.0f;
+    game->boostTimer = 0.0f;
+    game->hypersonicTimer = 0.0f;
+    game->inPitStop = false;
+    game->pitStopTimer = 0.0f;
+    game->engineTuning = 0.5f;
+    for (int i = 0; i < MAX_BOOST_COINS; i++) game->boostCollected[i] = 0;
+    game->lastTrackIdx = 0;
+    game->kangarooTimer = 8.0f;
+    game->kangarooJumpT = 0.0f;
+    game->kangarooActive = 0;
+    game->kangarooHit = 0;
+    game->windshieldBroken = 0;
+    lastCountdownSec = -1;
+    AudioPlayStartBeep();
+  }
 }
 
 void GameDrawFinished(Game *game) {
-  DrawText("RACE COMPLETE!", 440, 200, 60, GOLD);
+  if (game->windshieldBroken) {
+    DrawText("KANGAROO HIT!", 400, 150, 60, RED);
+    DrawText("Windshield shattered!", 460, 250, 30, ORANGE);
+  } else if (game->fuel <= 0.0f) {
+    DrawText("OUT OF FUEL!", 420, 150, 60, RED);
+    DrawText("Engine stalled...", 480, 250, 30, ORANGE);
+  } else {
+    DrawText("RACE COMPLETE!", 440, 150, 60, GOLD);
+  }
+
   char buf[128];
   snprintf(buf, sizeof(buf), "Total Time: %.2f", game->raceTime);
   DrawText(buf, 520, 320, 30, WHITE);
   snprintf(buf, sizeof(buf), "Best Lap: %.2f", game->bestLap);
   DrawText(buf, 520, 370, 30, WHITE);
+  snprintf(buf, sizeof(buf), "Laps: %d / %d", game->lap, game->totalLaps);
+  DrawText(buf, 520, 420, 30, WHITE);
   DrawText("Press ENTER for menu", 500, 500, 20, LIGHTGRAY);
+  DrawText("Press R to restart", 510, 540, 20, LIME);
 }

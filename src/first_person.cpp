@@ -260,9 +260,15 @@ static void DrawSpectators(const Game *game, float steerOff) {
     int b = 80 + (i * 71) % 175;
     Color bodyCol = { (unsigned char)r, (unsigned char)g, (unsigned char)b, 255 };
 
+    // Jump animation: each spectator bounces at a slightly different phase
+    float time = GetTime();
+    float phase = (float)i * 0.7f;
+    float jump = sinf(time * 6.0f + phase) * 0.5f + 0.5f; // 0..1
+    float jumpOffset = jump * 4.0f * scale;
+
     float headR = 3.0f * scale;
-    DrawCircle((int)sx, (int)(sy - bodyH * 0.8f), (int)headR, (Color){220, 180, 150, 255});
-    DrawRectangle((int)(sx - bodyW / 2), (int)(sy - bodyH * 0.6f), (int)bodyW, (int)(bodyH * 0.6f), bodyCol);
+    DrawCircle((int)sx, (int)(sy - bodyH * 0.8f - jumpOffset), (int)headR, (Color){220, 180, 150, 255});
+    DrawRectangle((int)(sx - bodyW / 2), (int)(sy - bodyH * 0.6f - jumpOffset), (int)bodyW, (int)(bodyH * 0.6f), bodyCol);
   }
 }
 
@@ -660,6 +666,82 @@ static void DrawDashboard(const Game *game) {
   DrawCircleV(carMM, 4.0f, RED);
 }
 
+// === Kangaroo ===
+
+static void DrawKangaroo(const Game *game, float steerOff) {
+  if (!game->kangarooActive) return;
+
+  float t = game->kangarooJumpT;
+  if (t < 0.0f) t = 0.0f;
+  if (t > 1.0f) t = 1.0f;
+
+  // Kangaroo position: arc from start to landing
+  // We stored the landing spot in kangarooPos; the start was offset
+  // For visual: interpolate with a parabolic arc
+  Vector2 kp = game->kangarooPos;
+  float lx, ly;
+  WorldToLocal(game, kp, &lx, &ly);
+  float sx, sy, scale;
+  if (!Project(lx, ly, steerOff, &sx, &sy, &scale)) return;
+
+  // Jump arc: parabolic height
+  float arcHeight = sinf(t * PI) * 30.0f * scale;
+  float ky = sy - arcHeight;
+
+  float bodyW = 20.0f * scale;
+  float bodyH = 30.0f * scale;
+  if (bodyW < 2.0f) return;
+  if (bodyW > 120.0f) bodyW = 120.0f;
+
+  Color kangCol = { 160, 120, 60, 255 };
+  Color kangDark = { 120, 80, 40, 255 };
+
+  // Body
+  DrawEllipse((int)sx, (int)ky, (int)(bodyW * 0.6f), (int)(bodyH * 0.5f), kangCol);
+  // Head
+  DrawCircle((int)(sx + bodyW * 0.3f), (int)(ky - bodyH * 0.4f), (int)(bodyW * 0.25f), kangCol);
+  // Ear
+  DrawCircle((int)(sx + bodyW * 0.4f), (int)(ky - bodyH * 0.55f), (int)(bodyW * 0.1f), kangDark);
+  // Tail
+  DrawLineEx((Vector2){sx - bodyW * 0.5f, ky},
+             (Vector2){sx - bodyW * 0.8f, ky + bodyH * 0.3f},
+             3.0f * scale, kangDark);
+  // Legs
+  float legSpread = sinf(t * PI) * bodyW * 0.3f;
+  DrawLineEx((Vector2){sx - bodyW * 0.2f, ky + bodyH * 0.3f},
+             (Vector2){sx - bodyW * 0.2f - legSpread, ky + bodyH * 0.6f},
+             2.0f * scale, kangDark);
+  DrawLineEx((Vector2){sx + bodyW * 0.2f, ky + bodyH * 0.3f},
+             (Vector2){sx + bodyW * 0.2f + legSpread, ky + bodyH * 0.6f},
+             2.0f * scale, kangDark);
+}
+
+// === Windshield broken overlay ===
+
+static void DrawWindshieldBroken(const Game *game) {
+  if (!game->windshieldBroken) return;
+
+  // Cracked glass effect: radial lines from center
+  int cx = 640, cy = 250;
+  for (int i = 0; i < 12; i++) {
+    float angle = (float)i * (PI / 6.0f) + 0.3f;
+    float len = 150.0f + (float)((i * 17) % 100);
+    float ex = (float)cx + cosf(angle) * len;
+    float ey = (float)cy + sinf(angle) * len;
+    DrawLineEx((Vector2){(float)cx, (float)cy}, (Vector2){ex, ey}, 2.0f, (Color){200, 220, 255, 180});
+  }
+  // Inner cracks
+  for (int i = 0; i < 8; i++) {
+    float angle = (float)i * (PI / 4.0f) + 0.7f;
+    float len = 60.0f + (float)((i * 23) % 50);
+    float ex = (float)cx + cosf(angle) * len;
+    float ey = (float)cy + sinf(angle) * len;
+    DrawLineEx((Vector2){(float)cx, (float)cy}, (Vector2){ex, ey}, 1.0f, (Color){255, 255, 255, 120});
+  }
+  // Center impact point
+  DrawCircle(cx, cy, 8, (Color){255, 255, 255, 200});
+}
+
 // === Main first-person draw ===
 
 void FirstPersonDraw(const Game *game) {
@@ -692,8 +774,14 @@ void FirstPersonDraw(const Game *game) {
   // AI cars ahead
   DrawAICarsAhead(game, steerOff);
 
+  // Kangaroo
+  DrawKangaroo(game, steerOff);
+
   // Rear mirror
   DrawRearMirror(game);
+
+  // Windshield broken overlay
+  DrawWindshieldBroken(game);
 
   // Dashboard
   DrawDashboard(game);

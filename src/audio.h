@@ -14,6 +14,7 @@ void AudioUpdateAICar(int index, float distance, float relativeSpeed, float aiSp
 void AudioPlayStartBeep(void);
 void AudioPlayCountdownBeep(int remaining);
 void AudioPlaySkid(void);
+void AudioPlayChime(void);
 
 #ifdef __cplusplus
 }

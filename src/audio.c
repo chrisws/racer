@@ -4,6 +4,7 @@
 static Sound engineSound;
 static Sound beepSound;
 static Sound skidSound;
+static Sound chimeSound;
 static Sound aiSounds[3];
 static bool enginePlaying = false;
 static bool aiPlaying[3] = { false, false, false };
@@ -79,6 +80,11 @@ void AudioInit(void) {
   Wave skidWave = GenerateNoiseWave(44100, 500);
   skidSound = LoadSoundFromWave(skidWave);
   UnloadWave(skidWave);
+
+  // Chime: bright 1200 Hz tone, 300 ms
+  Wave chimeWave = GenerateToneWave(1200.0f, 44100, 300);
+  chimeSound = LoadSoundFromWave(chimeWave);
+  UnloadWave(chimeWave);
 }
 
 void AudioShutdown(void) {
@@ -90,6 +96,7 @@ void AudioShutdown(void) {
   }
   UnloadSound(beepSound);
   UnloadSound(skidSound);
+  UnloadSound(chimeSound);
   CloseAudioDevice();
 }
 
@@ -139,6 +146,12 @@ void AudioPlaySkid(void) {
   if (!IsSoundPlaying(skidSound)) {
     PlaySound(skidSound);
   }
+}
+
+void AudioPlayChime(void) {
+  SetSoundPitch(chimeSound, 1.0f);
+  SetSoundVolume(chimeSound, 0.7f);
+  PlaySound(chimeSound);
 }
 
 void AudioUpdateAICar(int index, float distance, float relativeSpeed, float aiSpeed) {

@@ -78,6 +78,19 @@ struct Game {
 
   // Spectators
   int spectatorCount;
+
+  // Lap tracking
+  int lastTrackIdx;
+
+  // Kangaroo
+  Vector2 kangarooPos;
+  float kangarooTimer;
+  float kangarooJumpT;   // 0..1 jump progress
+  int kangarooActive;
+  int kangarooHit;
+
+  // Windshield broken
+  int windshieldBroken;
 };
 
 void GameUpdateMenu(Game *game);

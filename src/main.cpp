@@ -54,6 +54,19 @@ static void InitGame(Game *game) {
 
   // Spectators
   game->spectatorCount = 20;
+
+  // Lap tracking
+  game->lastTrackIdx = 0;
+
+  // Kangaroo
+  game->kangarooPos = (Vector2){0.0f, 0.0f};
+  game->kangarooTimer = 8.0f;
+  game->kangarooJumpT = 0.0f;
+  game->kangarooActive = 0;
+  game->kangarooHit = 0;
+
+  // Windshield
+  game->windshieldBroken = 0;
 }
 
 int main(void) {
