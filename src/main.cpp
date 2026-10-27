@@ -14,6 +14,7 @@ static void InitGame(Game *game) {
   game->offTrackTimer = 0.0f;
   game->car = PlayerCar((Vector2){400.0f, 900.0f}, 0.0f);
   TrackInit(&game->track);
+  TrackSmooth(&game->track, 20);
   EffectsInit(&game->effects);
   game->aiCarCount = MAX_AI_CARS;
   AICar::InitAll(game->aiCars, game->aiCarCount, &game->track);
@@ -50,6 +51,7 @@ static void InitGame(Game *game) {
   game->pitZoneIdx = N / 8;
   game->inPitStop = false;
   game->pitStopTimer = 0.0f;
+  game->pitStopCooldown = 0.0f;
   game->engineTuning = 0.5f;
 
   // Spectators

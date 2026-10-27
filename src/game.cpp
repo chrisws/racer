@@ -27,6 +27,7 @@ void GameUpdateMenu(Game *game) {
     game->hypersonicTimer = 0.0f;
     game->inPitStop = false;
     game->pitStopTimer = 0.0f;
+    game->pitStopCooldown = 0.0f;
     game->engineTuning = 0.5f;
     for (int i = 0; i < MAX_BOOST_COINS; i++) game->boostCollected[i] = 0;
     game->lastTrackIdx = 0;
@@ -141,6 +142,7 @@ void GameUpdateRacing(Game *game) {
     }
     if (IsKeyPressed(KEY_SPACE) || game->pitStopTimer <= 0.0f) {
       game->inPitStop = false;
+      game->pitStopCooldown = 2.0f; // 2s cooldown before pit can re-trigger
       for (int i = 0; i < 4; i++) game->tirePressure[i] = 100.0f;
     }
     EffectsUpdate(&game->effects, dt);
@@ -256,10 +258,13 @@ void GameUpdateRacing(Game *game) {
   if (game->hypersonicTimer > 0.0f) game->hypersonicTimer -= dt;
 
   // --- Pit stop zone ---
+  if (game->pitStopCooldown > 0.0f) {
+    game->pitStopCooldown -= dt;
+  }
   Vector2 pitPos = game->track.points[game->pitZoneIdx % N];
   float pdx = game->car.position.x - pitPos.x;
   float pdy = game->car.position.y - pitPos.y;
-  if (pdx * pdx + pdy * pdy < 900.0f && game->car.speed < 50.0f) { // 30 unit radius
+  if (pdx * pdx + pdy * pdy < 900.0f && game->car.speed < 50.0f && game->pitStopCooldown <= 0.0f) { // 30 unit radius
     game->inPitStop = true;
     game->pitStopTimer = PIT_STOP_DURATION;
   }
@@ -439,6 +444,7 @@ void GameUpdateFinished(Game *game) {
     game->hypersonicTimer = 0.0f;
     game->inPitStop = false;
     game->pitStopTimer = 0.0f;
+    game->pitStopCooldown = 0.0f;
     game->engineTuning = 0.5f;
     for (int i = 0; i < MAX_BOOST_COINS; i++) game->boostCollected[i] = 0;
     game->lastTrackIdx = 0;

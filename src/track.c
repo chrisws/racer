@@ -4,7 +4,7 @@
 // Mount Panorama-inspired circuit (Bathurst 1000, NSW Australia)
 // Key sections: Main Straight, The Loop, The Dip, The Pylon,
 // The Cutting Room, The Hairpin, The Esses, The Chicanes
-static const Vector2 defaultTrackPoints[] = {
+static const Vector2 controlPoints[] = {
   { 200,  900 },   //  0: start/finish (bottom-left)
   { 600,  900 },   //  1: main straight
   { 1000, 900 },   //  2: main straight
@@ -27,12 +27,55 @@ static const Vector2 defaultTrackPoints[] = {
   { 200,  850 },   // 19: approach to start
 };
 
+#define CONTROL_POINT_COUNT 20
+
 void TrackInit(Track *track) {
-  track->pointCount = (int)(sizeof(defaultTrackPoints) / sizeof(defaultTrackPoints[0]));
-  for (int i = 0; i < track->pointCount; i++) {
-    track->points[i] = defaultTrackPoints[i];
+  track->pointCount = CONTROL_POINT_COUNT;
+  for (int i = 0; i < CONTROL_POINT_COUNT; i++) {
+    track->points[i] = controlPoints[i];
   }
   track->halfWidth = 60.0f;
+}
+
+// Catmull-Rom spline interpolation for smooth track curves
+static Vector2 CatmullRom(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, float t) {
+  float t2 = t * t;
+  float t3 = t2 * t;
+  Vector2 result;
+  result.x = 0.5f * ((2.0f * p1.x) +
+    (-p0.x + p2.x) * t +
+    (2.0f * p0.x - 5.0f * p1.x + 4.0f * p2.x - p3.x) * t2 +
+    (-p0.x + 3.0f * p1.x - 3.0f * p2.x + p3.x) * t3);
+  result.y = 0.5f * ((2.0f * p1.y) +
+    (-p0.y + p2.y) * t +
+    (2.0f * p0.y - 5.0f * p1.y + 4.0f * p2.y - p3.y) * t2 +
+    (-p0.y + 3.0f * p1.y - 3.0f * p2.y + p3.y) * t3);
+  return result;
+}
+
+void TrackSmooth(Track *track, int subdivisions) {
+  int N = track->pointCount;
+  if (N < 4) return;
+
+  Vector2 smoothed[MAX_TRACK_POINTS];
+  int count = 0;
+
+  for (int i = 0; i < N; i++) {
+    Vector2 p0 = track->points[(i - 1 + N) % N];
+    Vector2 p1 = track->points[i];
+    Vector2 p2 = track->points[(i + 1) % N];
+    Vector2 p3 = track->points[(i + 2) % N];
+
+    for (int j = 0; j < subdivisions; j++) {
+      float t = (float)j / (float)subdivisions;
+      smoothed[count++] = CatmullRom(p0, p1, p2, p3, t);
+    }
+  }
+
+  for (int i = 0; i < count; i++) {
+    track->points[i] = smoothed[i];
+  }
+  track->pointCount = count;
 }
 
 void TrackDraw(const Track *track) {
@@ -40,41 +83,68 @@ void TrackDraw(const Track *track) {
   Color shoulderColor = (Color){ 40, 40, 40, 255 };
   Color edgeColor = YELLOW;
 
-  // Draw shoulder/runoff (wider, darker) for visual context
-  for (int i = 0; i < track->pointCount; i++) {
-    int next = (i + 1) % track->pointCount;
-    DrawLineEx(track->points[i], track->points[next], track->halfWidth * 3.0f, shoulderColor);
-  }
+  int N = track->pointCount;
 
-  // Draw track surface as thick line segments
-  for (int i = 0; i < track->pointCount; i++) {
-    int next = (i + 1) % track->pointCount;
-    DrawLineEx(track->points[i], track->points[next], track->halfWidth * 2.0f, trackColor);
-  }
+  // Compute left and right edge points using averaged normals for smoothness
+  Vector2 leftEdge[MAX_TRACK_POINTS];
+  Vector2 rightEdge[MAX_TRACK_POINTS];
+  Vector2 shoulderL[MAX_TRACK_POINTS];
+  Vector2 shoulderR[MAX_TRACK_POINTS];
 
-  // Draw track edges
-  for (int i = 0; i < track->pointCount; i++) {
-    int next = (i + 1) % track->pointCount;
+  for (int i = 0; i < N; i++) {
+    int prev = (i - 1 + N) % N;
+    int next = (i + 1) % N;
     Vector2 a = track->points[i];
-    Vector2 b = track->points[next];
 
-    // Perpendicular direction
-    float dx = b.x - a.x;
-    float dy = b.y - a.y;
+    // Average of incoming and outgoing directions for a smooth normal
+    float dx1 = a.x - track->points[prev].x;
+    float dy1 = a.y - track->points[prev].y;
+    float dx2 = track->points[next].x - a.x;
+    float dy2 = track->points[next].y - a.y;
+    float dx = dx1 + dx2;
+    float dy = dy1 + dy2;
     float len = sqrtf(dx * dx + dy * dy);
-    if (len < 0.001f) continue;
+    if (len < 0.001f) {
+      leftEdge[i] = a;
+      rightEdge[i] = a;
+      shoulderL[i] = a;
+      shoulderR[i] = a;
+      continue;
+    }
     float px = -dy / len;
     float py = dx / len;
 
-    // Left edge
-    Vector2 aL = { a.x + px * track->halfWidth, a.y + py * track->halfWidth };
-    Vector2 bL = { b.x + px * track->halfWidth, b.y + py * track->halfWidth };
-    DrawLineEx(aL, bL, 3.0f, edgeColor);
+    leftEdge[i].x = a.x + px * track->halfWidth;
+    leftEdge[i].y = a.y + py * track->halfWidth;
+    rightEdge[i].x = a.x - px * track->halfWidth;
+    rightEdge[i].y = a.y - py * track->halfWidth;
+    shoulderL[i].x = a.x + px * track->halfWidth * 3.0f;
+    shoulderL[i].y = a.y + py * track->halfWidth * 3.0f;
+    shoulderR[i].x = a.x - px * track->halfWidth * 3.0f;
+    shoulderR[i].y = a.y - py * track->halfWidth * 3.0f;
+  }
 
-    // Right edge
-    Vector2 aR = { a.x - px * track->halfWidth, a.y - py * track->halfWidth };
-    Vector2 bR = { b.x - px * track->halfWidth, b.y - py * track->halfWidth };
-    DrawLineEx(aR, bR, 3.0f, edgeColor);
+  // Draw shoulder polygon (wider, darker)
+  {
+    Vector2 shoulderPoly[MAX_TRACK_POINTS * 2];
+    for (int i = 0; i < N; i++) shoulderPoly[i] = shoulderL[i];
+    for (int i = N - 1; i >= 0; i--) shoulderPoly[N + i] = shoulderR[i];
+    DrawTriangleStrip(shoulderPoly, N * 2 - 2, shoulderColor);
+  }
+
+  // Draw track surface as a filled polygon (no gaps at joints)
+  {
+    Vector2 trackPoly[MAX_TRACK_POINTS * 2];
+    for (int i = 0; i < N; i++) trackPoly[i] = leftEdge[i];
+    for (int i = N - 1; i >= 0; i--) trackPoly[N + i] = rightEdge[i];
+    DrawTriangleStrip(trackPoly, N * 2 - 2, trackColor);
+  }
+
+  // Draw track edges as continuous lines
+  for (int i = 0; i < N; i++) {
+    int next = (i + 1) % N;
+    DrawLineEx(leftEdge[i], leftEdge[next], 3.0f, edgeColor);
+    DrawLineEx(rightEdge[i], rightEdge[next], 3.0f, edgeColor);
   }
 
   // Draw start/finish line

@@ -74,6 +74,7 @@ struct Game {
   int pitZoneIdx;
   bool inPitStop;
   float pitStopTimer;
+  float pitStopCooldown; // prevents immediate re-trigger after exit
   float engineTuning; // 0.0 - 1.0
 
   // Spectators

@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#define MAX_TRACK_POINTS 64
+#define MAX_TRACK_POINTS 512
 
 typedef struct {
   Vector2 points[MAX_TRACK_POINTS];
@@ -16,6 +16,7 @@ typedef struct {
 } Track;
 
 void TrackInit(Track *track);
+void TrackSmooth(Track *track, int subdivisions);
 void TrackDraw(const Track *track);
 int TrackIsOnTrack(const Track *track, Vector2 pos);
 float TrackGetNearestDistance(const Track *track, Vector2 pos);
